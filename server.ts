@@ -3,6 +3,9 @@ import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
 
 import path from "path";
+import { fileURLToPath } from "url";
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const dbPath = process.env.DATA_DIR ? path.join(process.env.DATA_DIR, "crypto_casino.db") : "crypto_casino.db";
 const db = new Database(dbPath);
@@ -56,7 +59,7 @@ const generateGrid = () => Array(3).fill(0).map(() => Array(5).fill(0).map(() =>
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   app.use(express.json());
 
@@ -236,11 +239,17 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static("dist"));
+    // Serve the built Vite frontend in production
+    app.use(express.static(path.join(__dirname, 'dist')));
+
+    // Catch-all route for React Router
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+    });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on port ${PORT}`);
   });
 }
 
