@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import Database from "better-sqlite3";
 
 import path from "path";
@@ -60,6 +59,9 @@ const generateGrid = () => Array(3).fill(0).map(() => Array(5).fill(0).map(() =>
 async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
+
+  // Trust Render's load balancer IPs for accurate client IP addresses
+  app.set('trust proxy', ['loopback', 'linklocal', 'uniquelocal', '74.220.48.0/24', '74.220.56.0/24']);
 
   app.use(express.json());
 
@@ -233,6 +235,7 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",

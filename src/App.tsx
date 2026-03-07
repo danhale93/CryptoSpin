@@ -596,22 +596,53 @@ export default function App() {
   };
 
   const toggleLiveAssistant = async () => {
-    if (isLive) { sessionRef.current?.close(); setIsLive(false); return; }
-    setIsLive(true); setTranscription('Connecting to Live Degen Assistant...');
+    if (isLive) {
+      if (sessionRef.current) {
+        try {
+          sessionRef.current.close();
+        } catch (e) {
+          console.error("Error closing session", e);
+        }
+        sessionRef.current = null;
+      }
+      setIsLive(false);
+      return;
+    }
+    
+    setIsLive(true);
+    setTranscription('Connecting to Live Degen Assistant...');
+    
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const session = await ai.live.connect({
         model: "gemini-2.5-flash-native-audio-preview-09-2025",
         callbacks: {
           onopen: () => setTranscription('Live! Speak to the Degen Assistant.'),
-          onmessage: (msg) => { if (msg.serverContent?.modelTurn?.parts?.[0]?.text) setTranscription(prev => prev + '\n' + msg.serverContent?.modelTurn?.parts[0].text); },
-          onclose: () => setIsLive(false),
-          onerror: () => setIsLive(false)
+          onmessage: (msg) => {
+            if (msg.serverContent?.modelTurn?.parts?.[0]?.text) {
+              setTranscription(prev => prev + '\n' + msg.serverContent?.modelTurn?.parts[0].text);
+            }
+          },
+          onclose: () => {
+            setIsLive(false);
+            sessionRef.current = null;
+          },
+          onerror: () => {
+            setIsLive(false);
+            sessionRef.current = null;
+          }
         },
-        config: { responseModalities: [Modality.AUDIO], systemInstruction: "You are a degenerate crypto trading assistant. You are hype, use slang like 'wagmi', 'ngmi', 'to the moon'. You give advice on 'shilling' and 'aping in'. Be funny and high energy." }
+        config: {
+          responseModalities: [Modality.AUDIO],
+          systemInstruction: "You are a degenerate crypto trading assistant. You are hype, use slang like 'wagmi', 'ngmi', 'to the moon'. You give advice on 'shilling' and 'aping in'. Be funny and high energy."
+        }
       });
       sessionRef.current = session;
-    } catch (e) { setIsLive(false); }
+    } catch (e) {
+      console.error("Live connection failed", e);
+      setIsLive(false);
+      sessionRef.current = null;
+    }
   };
 
   return (
@@ -979,8 +1010,8 @@ export default function App() {
                       <div className="text-xs font-bold text-white font-mono">{tradeCount}</div>
                     </div>
                   </div>
-                  <div className="flex-1 min-h-[100px]">
-                    <ResponsiveContainer width="100%" height="100%">
+                  <div className="flex-1 min-h-[150px] w-full relative">
+                    <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                       <LineChart data={chartData}>
                         <YAxis domain={['auto', 'auto']} hide />
                         <Tooltip 
